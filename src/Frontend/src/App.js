@@ -307,7 +307,7 @@ return (
          <p className="docs-link">
           View full documentation on{' '}
           <a
-            href="https://nmrlipids.github.io/READMEcontent.html"
+            href="https://nmrlipids.github.io/FAIRMD_lipids/stable/schemas/simulation_metadata.html"
             target="_blank"
             rel="noopener noreferrer"
           >
