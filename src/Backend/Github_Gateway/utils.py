@@ -200,6 +200,7 @@ def create_pull_request_to_target(
         "head": head_branch,           
         "head_repo": head_repo,       
         "maintainer_can_modify": False,
+        "labels": ["contribute:sim"],
     }
 
     _, data = repo._requester.requestJsonAndCheck("POST", f"{repo.url}/pulls", input=payload)
