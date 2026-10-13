@@ -1,5 +1,6 @@
 from flask import Flask, request, abort
 import os, json, subprocess
+from pathlib import Path
 from fairmd.lipids.schema_validation.validate_info_dict import parse_valid_config_settings
 from fairmd.lipids import FMDL_MOL_PATH
 import fairmd.lipids.molecules as molecules
@@ -44,6 +45,35 @@ def pull_latest() -> None:
         except subprocess.CalledProcessError as e:
             logger.error("Failed to update %s repository: %s", name, e)
             raise
+            
+def ensure_fairmd_schema_symlink_compat():
+    """
+    Compatibility shim for FAIRMD_lipids layout changes.
+    Some installed fairmd validation code may still reference:
+      /app/Databank/src/fairmd/lipids/schema_validation/schema/info_yml_schema.json
+    We create that path as a symlink to the actual installed package location
+    when possible.
+    """
+    legacy_schema = Path("/app/Databank/src/fairmd/lipids/schema_validation/schema/info_yml_schema.json")
+    if legacy_schema.exists():
+        return
+
+    try:
+        import fairmd.lipids as fairmd_lipids_pkg
+        pkg_root = Path(fairmd_lipids_pkg.__file__).resolve().parent
+        current_schema = pkg_root / "schema_validation" / "schema" / "info_yml_schema.json"
+        if not current_schema.exists():
+            logger.warning("FAIRMD schema not found at expected package path: %s", current_schema)
+            return
+
+        legacy_schema.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            legacy_schema.symlink_to(current_schema)
+            logger.info("Created FAIRMD schema compatibility symlink: %s -> %s", legacy_schema, current_schema)
+        except FileExistsError:
+            pass
+    except Exception as e:
+        logger.warning("Could not prepare FAIRMD schema path compatibility shim: %s", e)
 
 def refresh_molecule_file():
     "Refreshes the local molecules.json file with updated molecule names."
@@ -223,6 +253,7 @@ def health_check():
     return api_return(payload={"status":"ok"})
 
 # Initial setup, runs when gunicorn imports this app:
+ensure_fairmd_schema_symlink_compat()
 pull_latest()
 refresh_molecule_file()
 build_mapping_dict(FMDL_MOL_PATH)
